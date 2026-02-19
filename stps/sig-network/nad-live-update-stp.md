@@ -11,14 +11,14 @@
 | **Jira Tracking** | Epic: [CNV-72329](https://issues.redhat.com/browse/CNV-72329), Parent: [VIRTSTRAT-560](https://issues.redhat.com/browse/VIRTSTRAT-560) |
 | **QE Owner(s)** | TBD |
 | **Owning SIG** | sig-network |
-| **Participating SIGs** | sig-compute |
+| **Participating SIGs** | sig-network |
 | **Current Status** | Draft |
 
 **Document Conventions (if applicable):** N/A
 
 ### **Feature Overview**
 
-This feature allows VM administrators to change the NetworkAttachmentDefinition (NAD) reference on a running VM's secondary network interface without requiring a VM restart. When the `LiveUpdateNADRef` feature gate is enabled, updating the `networkName` field in the VM spec triggers an automatic live migration. After migration, the VM is connected to the new network while guest interface properties such as MAC address and interface name are preserved. The feature is scoped to secondary networks using bridge binding only.
+This feature allows VM administrators to change the NetworkAttachmentDefinition (NAD) reference on a running VM's secondary network interface without requiring a VM restart. When the `LiveUpdateNADRef` feature gate is enabled, updating the `networkName` field in the VM spec takes effect transparently. After the update, the VM is connected to the new network while guest interface properties such as MAC address and interface name are preserved. The feature is scoped to secondary networks using bridge binding only.
 
 ---
 
@@ -31,10 +31,10 @@ This section documents the mandatory QE review process. The goal is to understan
 | Check | Done | Details/Notes | Comments |
 |:---------------------------------------|:-----|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:---------|
 | **Review Requirements** | [ ] | Reviewed the relevant requirements. | VEP #140 merged (kubevirt/enhancements#138, 2025-12-18). Implementation PR kubevirt/kubevirt#16412 open with active review. |
-| **Understand Value** | [ ] | Confirmed clear user stories and understood.  <br/>Understand the difference between U/S and D/S requirements<br/> **What is the value of the feature for RH customers**. | Enables network reassignment (e.g., VLAN change) without VM downtime, preserving workload continuity. |
-| **Customer Use Cases** | [ ] | Ensured requirements contain relevant **customer use cases**. | "As a VM admin, I want to swap the guest's uplink from one network to another without the VM noticing." |
+| **Understand Value** | [ ] | Confirmed clear user stories and understood. Understand the difference between U/S and D/S requirements. **What is the value of the feature for RH customers**. | Enables network reassignment (e.g., VLAN change) without VM downtime, preserving workload continuity. |
+| **Customer Use Cases** | [ ] | Ensured requirements contain relevant **customer use cases**. | Primary use case: VM admin swaps guest uplink between networks (e.g., VLAN change) with minimal service disruption. VEP #140 user story covers this. |
 | **Testability** | [ ] | Confirmed requirements are **testable and unambiguous**. | Testable via API patching and network connectivity checks. Upstream e2e test in `tests/network/nad_live_update.go` provides reference. |
-| **Acceptance Criteria** | [ ] | Ensured acceptance criteria are **defined clearly** (clear user stories; D/S requirements clearly defined in Jira). | AC: NAD change triggers migration, post-migration connectivity on new NAD, feature gate controls availability. CNV-78912 (user feedback visibility) still in progress. |
+| **Acceptance Criteria** | [ ] | Ensured acceptance criteria are **defined clearly** (clear user stories; D/S requirements clearly defined in Jira). | VEP #140 specifies: NAD reference change takes effect without restart, VM connects to new network, bridge binding only. Feature gate controls availability. CNV-78912 (user feedback visibility) still in progress. Non-goals are clearly listed. |
 | **Non-Functional Requirements (NFRs)** | [ ] | Confirmed coverage for NFRs, including Performance, Security, Usability, Downtime, Connectivity, Monitoring (alerts/metrics), Scalability, Portability (e.g., cloud support), and Docs. | No new scalability or performance constraints. Relies on existing migration infrastructure. |
 
 #### **2. Technology and Design Review**
@@ -42,7 +42,7 @@ This section documents the mandatory QE review process. The goal is to understan
 | Check | Done | Details/Notes | Comments |
 |:---------------------------------|:-----|:--------------------------------------------------------------------------------------------------------------------------------------------------------|:---------|
 | **Developer Handoff/QE Kickoff** | [ ] | A meeting where Dev/Arch walked QE through the design, architecture, and implementation details. **Critical for identifying untestable aspects early.** | QE kickoff should be scheduled during feature design phase. CNV-78912 (user feedback mitigation) is In Progress and should be discussed. |
-| **Technology Challenges** | [ ] | Identified potential testing challenges related to the underlying technology. | NAD name normalization (namespace-qualified vs. unqualified) can cause false migration triggers — flagged in PR review. `areNormalizedNetsEqual` helper is duplicated across two packages, creating drift risk. Pod `network-status` annotation parsing treats malformed annotations as empty NAD name, which silently influences migration decisions. |
+| **Technology Challenges** | [ ] | Identified potential testing challenges related to the underlying technology. | NAD name normalization (namespace-qualified vs. unqualified) can cause false update triggers — flagged in PR review. Pod `network-status` annotation parsing treats malformed annotations as empty NAD name, which silently influences update decisions. |
 | **Test Environment Needs** | [ ] | Determined necessary **test environment setups and tools**. | Requires 2+ schedulable worker nodes, two bridge-based NADs, shared storage for migration, `WorkloadUpdateMethods=LiveMigrate` and `VMRolloutStrategy=LiveUpdate`. |
 | **API Extensions** | [ ] | Reviewed new or modified APIs and their impact on testing. | No new API fields. Existing `spec.networks[].multus.networkName` becomes live-updatable. New feature gate: `LiveUpdateNADRef`. |
 | **Topology Considerations** | [ ] | Evaluated multi-cluster, network topology, and architectural impacts. | Both source and target nodes must have the target NAD's network infrastructure (bridge available). Non-migratable VMs cannot use this feature. |
@@ -63,7 +63,6 @@ Testing covers the ability to change the NAD reference on a running VM's seconda
 - **P1:** Verify correct behavior when the target NAD does not exist
 - **P1:** Verify that existing NIC hotplug/unplug operations are not affected when the feature gate is enabled
 - **P2:** Verify that multiple sequential NAD changes each result in correct network connectivity
-- **P2:** Verify that non-NAD network property changes still require restart when the feature gate is enabled
 
 **Out of Scope (Testing Scope Exclusions)**
 
@@ -71,11 +70,10 @@ Testing covers the ability to change the NAD reference on a running VM's seconda
 |:-------------------|:----------|:-------------------|
 | Migrating between CNI types | VEP #140 explicit non-goal | [ ] Name/Date |
 | Changing the network binding/plugin | VEP #140 explicit non-goal | [ ] Name/Date |
-| Seamless network connectivity during migration | Brief interruption is expected; VEP #140 explicit non-goal | [ ] Name/Date |
-| NAD change on non-migratable VMs | Requires DNC changes not in scope; VEP #140 explicit non-goal | [ ] Name/Date |
+| Seamless network connectivity during NAD reference change | Brief interruption is expected; VEP #140 explicit non-goal | [ ] Name/Date |
+| NAD change on non-migratable VMs | Feature requires migratable VM configuration; VEP #140 explicit non-goal | [ ] Name/Date |
 | Guest network reconfiguration after NAD swap | User responsibility; VEP #140 explicit non-goal | [ ] Name/Date |
-| In-place NAD swapping via DNC | Current design uses migration (Option 1); DNC changes not required | [ ] Name/Date |
-| Limiting migration retries for missing NAD | VEP #140 explicit non-goal | [ ] Name/Date |
+| In-place NAD swapping via DNC | VEP #140 design avoids in-place swap to prevent DNC conflicts | [ ] Name/Date |
 
 #### **2. Test Strategy**
 
@@ -139,16 +137,15 @@ The following conditions must be met before testing can begin:
 | Untestable Aspects | User feedback issue (CNV-78912): users/UI/e2e tests cannot currently tell if the network change was applied | Track CNV-78912 resolution; adjust tests once mitigation design is finalized | [ ] |
 | Resource Constraints | N/A | N/A | [ ] |
 | Dependencies | N/A | N/A | [ ] |
-| Other | `areNormalizedNetsEqual` helper is duplicated in two packages (`pkg/network/controllers/vm.go` and `pkg/network/vmliveupdate/restart.go`); divergence could cause inconsistent behavior | Ensure both copies are tested; recommend dev team extract to shared package | [ ] |
+| Design Gap | Missing or misconfigured target NAD may cause unbounded retry loop; no retry limit is enforced on NAD reference change (flagged in PR review) | Validate behavior when target NAD does not exist; confirm error reporting and absence of infinite retry; escalate to development if retry is unbounded | [ ] |
 
 #### **6. Known Limitations**
 
 - Only bridge binding type is supported for NAD reference live update. Other binding types (SR-IOV, macvtap, passt) are not supported.
-- Non-migratable VMs cannot use this feature; a live migration is required to apply the NAD change.
-- Brief network connectivity interruption occurs during live migration. Seamless connectivity is explicitly not a goal.
+- Non-migratable VMs cannot use this feature; the update mechanism requires migratable VM configuration.
+- Brief network connectivity interruption is expected during NAD reference change. Seamless connectivity is explicitly not a goal.
 - Guest network configuration (IP address, routes) is not automatically updated after the NAD swap; the VM owner must handle guest-side reconfiguration if needed.
 - In-place NAD swapping (without migration) is not supported, even on clusters with Dynamic Networks Controller.
-- The feature does not limit migration retries due to a missing NAD. If the target NAD does not exist, migrations will continue to be attempted.
 - Users/UI/e2e tests cannot currently tell if the network change was applied (CNV-78912 mitigation in progress).
 
 ---
@@ -161,22 +158,22 @@ This section links requirements to test coverage, enabling reviewers to verify a
 
 | Requirement ID | Requirement Summary | Test Scenario(s) | Tier | Priority |
 |:---------------|:--------------------|:-----------------|:-----|:---------|
-| CNV-72329 | NAD reference can be changed on a running VM without restart | Verify NAD reference change triggers live migration and VM connects to new network | Tier 1 | P0 |
+| CNV-72329 | NAD reference can be changed on a running VM without restart | Verify NAD reference change takes effect and VM connects to new network | Tier 1 | P0 |
 | | | Verify end-to-end NAD change workflow including connectivity on new network and loss of connectivity on old network | Tier 2 | P0 |
-| | Feature gate controls whether NAD changes are applied live | Verify NAD reference change does not trigger migration when feature gate is disabled; RestartRequired condition is set | Tier 1 | P0 |
+| | Feature gate controls whether NAD changes are applied live | Verify NAD reference change does not take effect when feature gate is disabled; RestartRequired condition is set | Tier 1 | P0 |
 | | | Verify feature gate disabled behavior end-to-end: VM requires restart after NAD change | Tier 2 | P0 |
-| | VM maintains guest interface properties after NAD change | Verify MAC address and interface name are preserved after NAD swap and migration | Tier 2 | P1 |
-| | VM connects to correct network after NAD change | Verify post-migration network connectivity on new NAD via peer VM communication | Tier 2 | P1 |
+| | VM maintains guest interface properties after NAD change | Verify MAC address and interface name are preserved after NAD reference change | Tier 2 | P1 |
+| | VM connects to correct network after NAD change | Verify post-update network connectivity on new NAD via peer VM communication | Tier 2 | P1 |
 | | Non-existent NAD reference is handled gracefully | Verify behavior when NAD reference is changed to a non-existent NAD | Tier 1 | P1 |
-| | | Verify VM state and recovery after failed migration attempt due to non-existent target NAD | Tier 2 | P1 |
+| | | Verify VM state and recovery after failed update attempt due to non-existent target NAD | Tier 2 | P1 |
 | | RestartRequired condition is not set for NAD-only changes | Verify that changing only the NAD reference does not add RestartRequired condition when feature gate is enabled | Tier 1 | P1 |
-| | Non-NAD network property changes still require restart | Verify that changing non-networkName properties (e.g., binding type) triggers RestartRequired even with feature gate enabled | Tier 1 | P1 |
+| | Backward compatibility: non-NAD network property changes are unaffected by this feature | Verify that changing non-networkName properties (e.g., binding type) triggers RestartRequired even with feature gate enabled | Tier 1 | P2 |
 | | Existing NIC hotplug operations are unaffected by feature gate | Verify bridge interface hotplug/unplug continues to work correctly when feature gate is enabled | Tier 1 | P1 |
 | | | Verify NIC hotplug followed by NAD change both complete correctly on the same VM | Tier 2 | P2 |
 | | Multiple sequential NAD changes produce correct results | Verify multiple NAD reference changes in sequence each result in correct connectivity | Tier 2 | P2 |
 | | Namespace-qualified NAD names are handled correctly | Verify NAD reference change works with namespace-qualified NAD names (e.g., `namespace/nad-name`) | Tier 1 | P2 |
-| | VM spec to VMI spec synchronization is correct after NAD change | Verify that VM spec NAD reference change is propagated to VMI spec networks before migration | Tier 1 | P1 |
-| | Existing migration evaluation is not regressed | Verify that existing SR-IOV and bridge hotplug migration triggers continue to produce correct migration conditions | Tier 1 | P1 |
+| | VM spec reflects NAD reference change after update | Verify that VM spec NAD reference change is propagated to VMI spec networks after update | Tier 1 | P1 |
+| | Existing network feature behavior is not regressed | Verify that existing SR-IOV and bridge hotplug triggers continue to produce correct conditions | Tier 1 | P1 |
 
 ---
 

@@ -23,8 +23,8 @@ class TestNADLiveUpdateE2E:
         - Running VM with secondary bridge interface on nad1
         - Peer VM running on nad2
         - MAC address and interface name of secondary interface recorded
-    """
 
+    """
     __test__ = False
 
     def test_e2e_nad_change_connectivity(self):
@@ -39,7 +39,6 @@ class TestNADLiveUpdateE2E:
         Expected:
             - Ping from VM to peer VM on nad2 succeeds with 0% packet loss
         """
-        pass
 
     def test_feature_gate_disabled_requires_restart(self):
         """
@@ -56,7 +55,6 @@ class TestNADLiveUpdateE2E:
             - VM reports RestartRequired condition after NAD change
             - VM is "Running" on new network after restart
         """
-        pass
 
     def test_mac_address_preserved(self):
         """
@@ -69,7 +67,6 @@ class TestNADLiveUpdateE2E:
         Expected:
             - MAC address equals pre-change value
         """
-        pass
 
     def test_interface_name_preserved(self):
         """
@@ -82,7 +79,6 @@ class TestNADLiveUpdateE2E:
         Expected:
             - Interface name equals pre-change value
         """
-        pass
 
     def test_post_update_peer_connectivity(self):
         """
@@ -96,7 +92,6 @@ class TestNADLiveUpdateE2E:
         Expected:
             - Ping succeeds with 0% packet loss
         """
-        pass
 
     def test_recovery_after_failed_nad_update(self):
         """
@@ -110,7 +105,6 @@ class TestNADLiveUpdateE2E:
             - Error condition is reported for non-existent NAD
             - VM is "Running" and connected to nad2 after valid change
         """
-        pass
 
     def test_hotplug_then_nad_change(self):
         """
@@ -124,7 +118,6 @@ class TestNADLiveUpdateE2E:
             - Hotplugged interface reports valid IP address
             - Original secondary interface is connected to new NAD
         """
-        pass
 
     def test_multiple_sequential_nad_changes(self):
         """
@@ -143,4 +136,3 @@ class TestNADLiveUpdateE2E:
             - Ping to peer on nad3 succeeds after second change
             - Ping to peer on nad1 succeeds after third change
         """
-        pass

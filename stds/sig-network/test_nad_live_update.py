@@ -56,30 +56,6 @@ class TestNADLiveUpdateE2E:
             - VM is "Running" on new network after restart
         """
 
-    def test_mac_address_preserved(self):
-        """
-        Test that MAC address is preserved after NAD reference change.
-
-        Steps:
-            1. Patch VM spec to change NAD reference from nad1 to nad2
-            2. Wait for update to complete
-
-        Expected:
-            - MAC address equals pre-change value
-        """
-
-    def test_interface_name_preserved(self):
-        """
-        Test that interface name is preserved after NAD reference change.
-
-        Steps:
-            1. Patch VM spec to change NAD reference from nad1 to nad2
-            2. Wait for update to complete
-
-        Expected:
-            - Interface name equals pre-change value
-        """
-
     def test_post_update_peer_connectivity(self):
         """
         Test that VM can communicate with peer VM on the new network after NAD change.

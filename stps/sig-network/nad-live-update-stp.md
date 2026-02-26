@@ -30,20 +30,20 @@ This section documents the mandatory QE review process. The goal is to understan
 
 | Check | Done | Details/Notes | Comments |
 |:---------------------------------------|:-----|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:---------|
-| **Review Requirements** | [ ] | Reviewed the relevant requirements. | VEP #140 merged (kubevirt/enhancements#138, 2025-12-18). Implementation PR kubevirt/kubevirt#16412 open with active review. |
-| **Understand Value** | [ ] | Confirmed clear user stories and understood. Understand the difference between U/S and D/S requirements. **What is the value of the feature for RH customers**. | Enables network reassignment (e.g., VLAN change) without VM downtime, preserving workload continuity. |
+| **Review Requirements** | [ ] | Reviewed the relevant requirements. | VEP #140 merged (kubevirt/enhancements#138, 2025-12-18). |
+| **Understand Value** | [ ] | Confirmed clear user stories and understood. <br/>Understand the difference between U/S and D/S requirements<br/> **What is the value of the feature for RH customers**. | Enables network reassignment (e.g., VLAN change) without VM downtime, preserving workload continuity. |
 | **Customer Use Cases** | [ ] | Ensured requirements contain relevant **customer use cases**. | Primary use case: VM admin swaps guest uplink between networks (e.g., VLAN change) with minimal service disruption. VEP #140 user story covers this. |
-| **Testability** | [ ] | Confirmed requirements are **testable and unambiguous**. | Testable via API patching and network connectivity checks. Upstream e2e test in `tests/network/nad_live_update.go` provides reference. |
-| **Acceptance Criteria** | [ ] | Ensured acceptance criteria are **defined clearly** (clear user stories; D/S requirements clearly defined in Jira). | VEP #140 specifies: NAD reference change takes effect without restart, VM connects to new network, bridge binding only. Feature gate controls availability. CNV-78912 (user feedback visibility) still in progress. Non-goals are clearly listed. |
-| **Non-Functional Requirements (NFRs)** | [ ] | Confirmed coverage for NFRs, including Performance, Security, Usability, Downtime, Connectivity, Monitoring (alerts/metrics), Scalability, Portability (e.g., cloud support), and Docs. | No new scalability or performance constraints. Relies on existing migration infrastructure. |
+| **Testability** | [ ] | Confirmed requirements are **testable and unambiguous**. | Testable via API patching and network connectivity checks. |
+| **Acceptance Criteria** | [ ] | Ensured acceptance criteria are **defined clearly** (clear user stories; D/S requirements clearly defined in Jira). | NAD reference change takes effect without restart, VM connects to new network, bridge binding only. Feature gate controls availability. CNV-78912 (user feedback visibility) still in progress. |
+| **Non-Functional Requirements (NFRs)** | [ ] | Confirmed coverage for NFRs, including Performance, Security, Usability, Downtime, Connectivity, Monitoring (alerts/metrics), Scalability, Portability (e.g., cloud support), and Docs. | No new scalability or performance constraints. |
 
 #### **2. Technology and Design Review**
 
 | Check | Done | Details/Notes | Comments |
 |:---------------------------------|:-----|:--------------------------------------------------------------------------------------------------------------------------------------------------------|:---------|
-| **Developer Handoff/QE Kickoff** | [ ] | A meeting where Dev/Arch walked QE through the design, architecture, and implementation details. **Critical for identifying untestable aspects early.** | QE kickoff should be scheduled during feature design phase. CNV-78912 (user feedback mitigation) is In Progress and should be discussed. |
-| **Technology Challenges** | [ ] | Identified potential testing challenges related to the underlying technology. | NAD name normalization (namespace-qualified vs. unqualified) can cause false update triggers — flagged in PR review. Pod `network-status` annotation parsing treats malformed annotations as empty NAD name, which silently influences update decisions. |
-| **Test Environment Needs** | [ ] | Determined necessary **test environment setups and tools**. | Requires 2+ schedulable worker nodes, two bridge-based NADs, shared storage for migration, `WorkloadUpdateMethods=LiveMigrate` and `VMRolloutStrategy=LiveUpdate`. |
+| **Developer Handoff/QE Kickoff** | [ ] | A meeting where Dev/Arch walked QE through the design, architecture, and implementation details. **Critical for identifying untestable aspects early.** | QE kickoff should be scheduled during feature design phase. CNV-78912 (user feedback mitigation) should be discussed. |
+| **Technology Challenges** | [ ] | Identified potential testing challenges related to the underlying technology. | NAD name normalization (namespace-qualified vs. unqualified) can cause false update triggers. Pod `network-status` annotation parsing treats malformed annotations as empty NAD name. |
+| **Test Environment Needs** | [ ] | Determined necessary **test environment setups and tools**. | See Section II.3 - Test Environment for detailed requirements. |
 | **API Extensions** | [ ] | Reviewed new or modified APIs and their impact on testing. | No new API fields. Existing `spec.networks[].multus.networkName` becomes live-updatable. New feature gate: `LiveUpdateNADRef`. |
 | **Topology Considerations** | [ ] | Evaluated multi-cluster, network topology, and architectural impacts. | Both source and target nodes must have the target NAD's network infrastructure (bridge available). Non-migratable VMs cannot use this feature. |
 
@@ -122,9 +122,8 @@ The following conditions must be met before testing can begin:
 
 - [ ] Requirements and design documents are **approved and merged**
 - [ ] Test environment can be **set up and configured** (see Section II.3 - Test Environment)
-- [ ] PR [kubevirt/kubevirt#16412](https://github.com/kubevirt/kubevirt/pull/16412) is merged and included in the target build
+- [ ] Feature implementation is merged and included in the target build
 - [ ] `LiveUpdateNADRef` feature gate is available in KubeVirt configuration
-- [ ] At least 2 bridge-based NetworkAttachmentDefinitions are deployed and functional on worker nodes
 - [ ] CNV-78912 (user feedback mitigation) design is finalized and its impact on testability is assessed
 
 #### **5. Risks**
@@ -160,14 +159,14 @@ This section links requirements to test coverage, enabling reviewers to verify a
 |:---------------|:--------------------|:-----------------|:-----|:---------|
 | CNV-72329 | NAD reference can be changed on a running VM without restart | Verify NAD reference change takes effect and VM connects to new network | Tier 1 | P0 |
 | | | Verify end-to-end NAD change workflow including connectivity on new network and loss of connectivity on old network | Tier 2 | P0 |
-| | Feature gate controls whether NAD changes are applied live | Verify NAD reference change does not take effect when feature gate is disabled; RestartRequired condition is set | Tier 1 | P0 |
+| | Feature gate controls whether NAD changes are applied live | Verify VM requires restart after NAD change when feature gate is disabled | Tier 1 | P0 |
 | | | Verify feature gate disabled behavior end-to-end: VM requires restart after NAD change | Tier 2 | P0 |
-| | VM maintains guest interface properties after NAD change | Verify MAC address and interface name are preserved after NAD reference change | Tier 2 | P1 |
+| | VM maintains guest interface properties after NAD change | Verify MAC address and interface name are preserved after NAD reference change | Tier 1 | P1 |
 | | VM connects to correct network after NAD change | Verify post-update network connectivity on new NAD via peer VM communication | Tier 2 | P1 |
 | | Non-existent NAD reference is handled gracefully | Verify behavior when NAD reference is changed to a non-existent NAD | Tier 1 | P1 |
 | | | Verify VM state and recovery after failed update attempt due to non-existent target NAD | Tier 2 | P1 |
-| | RestartRequired condition is not set for NAD-only changes | Verify that changing only the NAD reference does not add RestartRequired condition when feature gate is enabled | Tier 1 | P1 |
-| | Backward compatibility: non-NAD network property changes are unaffected by this feature | Verify that changing non-networkName properties (e.g., binding type) triggers RestartRequired even with feature gate enabled | Tier 1 | P2 |
+| | As an admin, I can modify the VM's NAD reference without triggering a restart | Verify VM stays running without restart after NAD-only change | Tier 1 | P1 |
+| | Backward compatibility: non-NAD network property changes are unaffected by this feature | Verify that changing non-NAD properties (e.g., binding type) still requires VM restart even with feature gate enabled | Tier 1 | P2 |
 | | Existing NIC hotplug operations are unaffected by feature gate | Verify bridge interface hotplug/unplug continues to work correctly when feature gate is enabled | Tier 1 | P1 |
 | | | Verify NIC hotplug followed by NAD change both complete correctly on the same VM | Tier 2 | P2 |
 | | Multiple sequential NAD changes produce correct results | Verify multiple NAD reference changes in sequence each result in correct connectivity | Tier 2 | P2 |

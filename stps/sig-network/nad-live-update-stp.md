@@ -136,7 +136,7 @@ The following conditions must be met before testing can begin:
 | Untestable Aspects | User feedback issue (CNV-78912): users/UI/e2e tests cannot currently tell if the network change was applied | Track CNV-78912 resolution; adjust tests once mitigation design is finalized | [ ] |
 | Resource Constraints | N/A | N/A | [ ] |
 | Dependencies | N/A | N/A | [ ] |
-| Design Gap | Missing or misconfigured target NAD may cause unbounded retry loop; no retry limit is enforced on NAD reference change (flagged in PR review) | Validate behavior when target NAD does not exist; confirm error reporting and absence of infinite retry; escalate to development if retry is unbounded | [ ] |
+| Other | Missing or misconfigured target NAD may cause unbounded retry loop; no retry limit is enforced on NAD reference change (flagged in PR review) | Validate behavior when target NAD does not exist; confirm error reporting and absence of infinite retry; escalate to development if retry is unbounded | [ ] |
 
 #### **6. Known Limitations**
 
@@ -180,9 +180,9 @@ This section links requirements to test coverage, enabling reviewers to verify a
 
 This Software Test Plan requires approval from the following stakeholders:
 
-- **Reviewers:**
+* **Reviewers:**
   - [Name / @github-username]
   - [Name / @github-username]
-- **Approvers:**
+* **Approvers:**
   - [Name / @github-username]
   - [Name / @github-username]

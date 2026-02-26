@@ -23,7 +23,6 @@ class TestNADLiveUpdateE2E:
         - Running VM with secondary bridge interface on nad1
         - Peer VM running on nad2
         - MAC address and interface name of secondary interface recorded
-
     """
     __test__ = False
 

@@ -14,12 +14,7 @@ class TestNADLiveUpdateE2E:
         - tier2
 
     Preconditions:
-        - OpenShift cluster with OCP 4.22+ and OVN-Kubernetes
-        - OpenShift Virtualization 4.22+
-        - Multi-node cluster with 2+ schedulable worker nodes
-        - Shared RWX storage for live migration
         - Two bridge-based NADs deployed on each worker node (nad1, nad2)
-        - WorkloadUpdateMethods=LiveMigrate, VMRolloutStrategy=LiveUpdate
         - Running VM with secondary bridge interface on nad1
         - Peer VM running on nad2
         - MAC address and interface name of secondary interface recorded
@@ -30,10 +25,12 @@ class TestNADLiveUpdateE2E:
         """
         Test that a VM gains connectivity on the new network after NAD change.
 
+        Preconditions:
+            - No connectivity to peer VM on nad2 (baseline)
+
         Steps:
-            1. Verify no connectivity to peer VM on nad2 (baseline)
-            2. Patch VM spec to change NAD reference from nad1 to nad2
-            3. Wait for update to complete
+            1. Patch VM spec to change NAD reference from nad1 to nad2
+            2. Wait for update to complete
 
         Expected:
             - Ping from VM to peer VM on nad2 succeeds with 0% packet loss

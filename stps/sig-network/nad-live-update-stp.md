@@ -7,8 +7,8 @@
 | Field | Details |
 |:-----------------------|:------------------------------------------------------------------|
 | **Enhancement(s)** | [VEP #140: Live Update NAD Reference](https://github.com/kubevirt/enhancements/blob/main/veps/sig-network/hotpluggable-nad-ref.md) |
-| **Feature in Jira** | [CNV-72329](https://issues.redhat.com/browse/CNV-72329) |
-| **Jira Tracking** | Epic: [CNV-72329](https://issues.redhat.com/browse/CNV-72329), Parent: [VIRTSTRAT-560](https://issues.redhat.com/browse/VIRTSTRAT-560) |
+| **Feature in Jira** | [VIRTSTRAT-560](https://issues.redhat.com/browse/VIRTSTRAT-560) |
+| **Jira Tracking** | [CNV-72329](https://issues.redhat.com/browse/CNV-72329) |
 | **QE Owner(s)** | TBD |
 | **Owning SIG** | sig-network |
 | **Participating SIGs** | sig-network |
@@ -31,7 +31,7 @@ This section documents the mandatory QE review process. The goal is to understan
 | Check | Done | Details/Notes | Comments |
 |:---------------------------------------|:-----|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:---------|
 | **Review Requirements** | [ ] | Reviewed the relevant requirements. | VEP #140 merged (kubevirt/enhancements#138, 2025-12-18). |
-| **Understand Value** | [ ] | Confirmed clear user stories and understood. <br/>Understand the difference between U/S and D/S requirements<br/> **What is the value of the feature for RH customers**. | Enables network reassignment (e.g., VLAN change) without VM downtime, preserving workload continuity. |
+| **Understand Value** | [ ] | Confirmed clear user stories and understood. <br/>Understand the difference between U/S and D/S requirements<br/> **What is the value of the feature for RH customers**. | Enables network reassignment (e.g., VLAN change) without VM restart, preserving workload continuity. |
 | **Customer Use Cases** | [ ] | Ensured requirements contain relevant **customer use cases**. | Primary use case: VM admin swaps guest uplink between networks (e.g., VLAN change) with minimal service disruption. VEP #140 user story covers this. |
 | **Testability** | [ ] | Confirmed requirements are **testable and unambiguous**. | Testable via API patching and network connectivity checks. |
 | **Acceptance Criteria** | [ ] | Ensured acceptance criteria are **defined clearly** (clear user stories; D/S requirements clearly defined in Jira). | NAD reference change takes effect without restart, VM connects to new network, bridge binding only. Feature gate controls availability. CNV-78912 (user feedback visibility) still in progress. |
@@ -59,7 +59,7 @@ Testing covers the ability to change the NAD reference on a running VM's seconda
 
 - **P0:** Verify that changing the NAD reference on a running VM results in the VM being connected to the new network without restart
 - **P0:** Verify that the `LiveUpdateNADRef` feature gate controls whether NAD changes are applied live or require restart
-- **P1:** Verify that the VM maintains its guest interface properties (MAC address, interface name) after the NAD change
+- **P0:** Verify that the VM maintains its guest interface properties (MAC address, interface name) after the NAD change
 - **P1:** Verify correct behavior when the target NAD does not exist
 - **P1:** Verify that existing NIC hotplug/unplug operations are not affected when the feature gate is enabled
 - **P2:** Verify that multiple sequential NAD changes each result in correct network connectivity
@@ -157,22 +157,22 @@ This section links requirements to test coverage, enabling reviewers to verify a
 
 | Requirement ID | Requirement Summary | Test Scenario(s) | Tier | Priority |
 |:---------------|:--------------------|:-----------------|:-----|:---------|
-| CNV-72329 | NAD reference can be changed on a running VM without restart | Verify NAD reference change takes effect and VM connects to new network | Tier 1 | P0 |
-| | | Verify end-to-end NAD change workflow including connectivity on new network and loss of connectivity on old network | Tier 2 | P0 |
-| | Feature gate controls whether NAD changes are applied live | Verify VM requires restart after NAD change when feature gate is disabled | Tier 1 | P0 |
-| | | Verify feature gate disabled behavior end-to-end: VM requires restart after NAD change | Tier 2 | P0 |
-| | VM maintains guest interface properties after NAD change | Verify MAC address and interface name are preserved after NAD reference change | Tier 1 | P1 |
-| | VM connects to correct network after NAD change | Verify post-update network connectivity on new NAD via peer VM communication | Tier 2 | P1 |
-| | Non-existent NAD reference is handled gracefully | Verify behavior when NAD reference is changed to a non-existent NAD | Tier 1 | P1 |
-| | | Verify VM state and recovery after failed update attempt due to non-existent target NAD | Tier 2 | P1 |
-| | As an admin, I can modify the VM's NAD reference without triggering a restart | Verify VM stays running without restart after NAD-only change | Tier 1 | P1 |
-| | Backward compatibility: non-NAD network property changes are unaffected by this feature | Verify that changing non-NAD properties (e.g., binding type) still requires VM restart even with feature gate enabled | Tier 1 | P2 |
-| | Existing NIC hotplug operations are unaffected by feature gate | Verify bridge interface hotplug/unplug continues to work correctly when feature gate is enabled | Tier 1 | P1 |
-| | | Verify NIC hotplug followed by NAD change both complete correctly on the same VM | Tier 2 | P2 |
-| | Multiple sequential NAD changes produce correct results | Verify multiple NAD reference changes in sequence each result in correct connectivity | Tier 2 | P2 |
-| | Namespace-qualified NAD names are handled correctly | Verify NAD reference change works with namespace-qualified NAD names (e.g., `namespace/nad-name`) | Tier 1 | P2 |
-| | VM spec reflects NAD reference change after update | Verify that VM spec NAD reference change is propagated to VMI spec networks after update | Tier 1 | P1 |
-| | Existing network feature behavior is not regressed | Verify that existing SR-IOV and bridge hotplug triggers continue to produce correct conditions | Tier 1 | P1 |
+| CNV-72329 | As a VM admin, I want to change the NAD on a running VM and connect to the new network | Verify VM is reachable on new network | Tier 1 | P0 |
+| | | Verify VM has connectivity on new network and loses connectivity on old network | Tier 2 | P0 |
+| | As a VM admin, I want the feature gate to control whether NAD changes are applied live | Verify NAD change requires restart when feature gate is disabled | Tier 1 | P0 |
+| | | Verify NAD change requires VM restart end-to-end when feature gate is disabled | Tier 2 | P0 |
+| | As a VM admin, I want guest interface properties preserved after NAD change | Verify MAC address and interface name are preserved | Tier 1 | P0 |
+| | As a VM admin, I want VM connectivity on the correct network after NAD change | Verify VM can communicate with peer on new network | Tier 2 | P1 |
+| | As a VM admin, I want graceful handling when target NAD does not exist | Verify error is reported for non-existent NAD | Tier 1 | P1 |
+| | | Verify VM recovers after failed NAD update | Tier 2 | P1 |
+| | As a VM admin, I want NAD changes applied without triggering a VM restart | Verify VM does not restart after NAD change | Tier 1 | P1 |
+| | As a VM admin, I want non-NAD network changes to still require restart | Verify non-NAD property change still requires restart | Tier 1 | P2 |
+| | As a VM admin, I want existing NIC hotplug to work with the feature gate enabled | Verify NIC hotplug/unplug works with feature gate enabled | Tier 1 | P1 |
+| | | Verify NIC hotplug and NAD change both succeed on same VM | Tier 2 | P2 |
+| | As a VM admin, I want to change NADs multiple times in sequence | Verify connectivity is correct after each sequential NAD change | Tier 2 | P2 |
+| | As a VM admin, I want namespace-qualified NAD names to work | Verify NAD change works with namespace-qualified names | Tier 1 | P2 |
+| | As a VM admin, I want the VM spec to reflect the NAD change | Verify VMI spec shows updated NAD after change | Tier 1 | P1 |
+| | As a VM admin, I want existing network features to continue working | Verify SR-IOV and bridge hotplug are not regressed | Tier 1 | P1 |
 
 ---
 

@@ -62,7 +62,6 @@ Testing covers the ability to change the NAD reference on a running VM's seconda
 - **P0:** Verify that the VM maintains its guest interface properties (MAC address, interface name) after the NAD change
 - **P1:** Verify correct behavior when the target NAD does not exist
 - **P1:** Verify that existing NIC hotplug/unplug operations are not affected when the feature gate is enabled
-- **P2:** Verify that multiple sequential NAD changes each result in correct network connectivity
 
 **Out of Scope (Testing Scope Exclusions)**
 
@@ -162,14 +161,12 @@ This section links requirements to test coverage, enabling reviewers to verify a
 | | As a VM admin, I want the feature gate to control whether NAD changes are applied live | Verify NAD change requires restart when feature gate is disabled | Tier 1 | P0 |
 | | | Verify NAD change requires VM restart end-to-end when feature gate is disabled | Tier 2 | P0 |
 | | As a VM admin, I want guest interface properties preserved after NAD change | Verify MAC address and interface name are preserved | Tier 1 | P0 |
-| | As a VM admin, I want VM connectivity on the correct network after NAD change | Verify VM can communicate with peer on new network | Tier 2 | P1 |
 | | As a VM admin, I want graceful handling when target NAD does not exist | Verify error is reported for non-existent NAD | Tier 1 | P1 |
 | | | Verify VM recovers after failed NAD update | Tier 2 | P1 |
 | | As a VM admin, I want NAD changes applied without triggering a VM restart | Verify VM does not restart after NAD change | Tier 1 | P1 |
 | | As a VM admin, I want non-NAD network changes to still require restart | Verify non-NAD property change still requires restart | Tier 1 | P2 |
 | | As a VM admin, I want existing NIC hotplug to work with the feature gate enabled | Verify NIC hotplug/unplug works with feature gate enabled | Tier 1 | P1 |
 | | | Verify NIC hotplug and NAD change both succeed on same VM | Tier 2 | P2 |
-| | As a VM admin, I want to change NADs multiple times in sequence | Verify connectivity is correct after each sequential NAD change | Tier 2 | P2 |
 | | As a VM admin, I want namespace-qualified NAD names to work | Verify NAD change works with namespace-qualified names | Tier 1 | P2 |
 | | As a VM admin, I want the VM spec to reflect the NAD change | Verify VMI spec shows updated NAD after change | Tier 1 | P1 |
 | | As a VM admin, I want existing network features to continue working | Verify SR-IOV and bridge hotplug are not regressed | Tier 1 | P1 |

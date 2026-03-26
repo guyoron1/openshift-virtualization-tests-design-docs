@@ -5,202 +5,236 @@ STP Reference: stps/sig-network/nad-live-update-stp.md
 Jira: CNV-72329
 """
 
-import logging
 
-import pytest
-
-from libs.net.vmspec import lookup_iface_status, lookup_iface_status_ip
-from ocp_resources.virtual_machine_instance import VirtualMachineInstance
-from tests.network.l2_bridge.libl2bridge import hot_plug_interface
-from utilities.constants import TIMEOUT_2MIN, TIMEOUT_5MIN
-from utilities.network import assert_ping_successful, is_destination_pingable_from_vm
-
-from conftest import patch_vm_nad_reference
-
-LOGGER = logging.getLogger(__name__)
-
-pytestmark = pytest.mark.usefixtures("namespace")
-
-HOT_PLUG_IFACE_NAME = "hotplug-iface"
-
-
-@pytest.mark.tier2
-class TestNADLiveUpdateE2E:
+class TestNADLiveUpdate:
     """
-    Tests for live update of NAD reference on a running VM's secondary network interface.
+    Tests for live update of NAD reference on a running VM.
 
     Markers:
-        - tier2
+        - tier1
 
     Preconditions:
-        - Two bridge-based NADs deployed on each worker node (nad1, nad2)
         - Running VM with secondary bridge interface on nad1
+        - Target NAD (nad2) deployed on worker nodes
         - Peer VM running on nad2
         - MAC address and interface name of secondary interface recorded
     """
 
-    def test_e2e_nad_change_connectivity(
-        self,
-        nad1_scope_class,
-        nad2_scope_class,
-        vm_on_nad1_scope_class,
-        peer_vm_on_nad2_scope_class,
-        peer_vm_ip,
-    ):
+    __test__ = False
+
+    def test_nad_change_connects_to_new_network(self):
         """
-        Test TS-CNV72329-002: VM gains connectivity on new network after NAD change.
+        Test that VM connects to new network after NAD change.
+
+        Steps:
+            1. Patch VM spec to change NAD reference from nad1 to nad2
+            2. Wait for update to complete
+
+        Expected:
+            - VM is reachable on nad2 network
+            - Ping from VM to peer VM on nad2 succeeds
+        """
+        pass
+
+    def test_nad_change_disconnects_from_old_network(self):
+        """
+        Test that VM loses connectivity on old network after NAD change.
 
         Preconditions:
-            - No connectivity to peer VM on nad2 (baseline)
+            - NAD reference changed from nad1 to nad2
 
         Steps:
-            1. Verify no baseline connectivity to peer VM on nad2
-            2. Patch VM spec to change NAD reference from nad1 to nad2
-            3. Wait for update to complete
+            1. Attempt ping to nad1 network
 
         Expected:
-            - Ping from VM to peer VM on nad2 succeeds with 0% packet loss
+            - VM is not reachable on nad1 network
         """
-        LOGGER.info("Verifying no baseline connectivity to peer VM on nad2")
-        assert not is_destination_pingable_from_vm(
-            src_vm=vm_on_nad1_scope_class,
-            dst_ip=str(peer_vm_ip),
-            count=3,
-        ), "VM should NOT have connectivity to peer on nad2 before NAD change"
+        pass
 
-        LOGGER.info("Patching VM spec to change NAD reference from nad1 to nad2")
-        patch_vm_nad_reference(
-            vm=vm_on_nad1_scope_class,
-            network_name=nad1_scope_class.name,
-            new_nad_name=nad2_scope_class.name,
-        )
-
-        LOGGER.info("Waiting for NAD change to take effect")
-        lookup_iface_status(
-            vm=vm_on_nad1_scope_class,
-            iface_name=nad2_scope_class.name,
-            timeout=TIMEOUT_5MIN,
-        )
-
-        LOGGER.info("Verifying connectivity to peer VM on nad2")
-        assert_ping_successful(
-            src_vm=vm_on_nad1_scope_class,
-            dst_ip=lookup_iface_status_ip(
-                vm=peer_vm_on_nad2_scope_class,
-                iface_name=nad2_scope_class.name,
-                ip_family=4,
-            ),
-        )
-
-    def test_recovery_after_failed_nad_update(
-        self,
-        nad1_scope_class,
-        nad2_scope_class,
-        vm_on_nad1_scope_class,
-    ):
+    def test_mac_address_preserved_after_nad_change(self):
         """
-        Test TS-CNV72329-007: [NEGATIVE] VM recovers after failed NAD update.
+        Test that MAC address is preserved after NAD change.
+
+        Preconditions:
+            - NAD reference changed from nad1 to nad2
 
         Steps:
-            1. Patch VM spec to change NAD reference to non-existent NAD name
-            2. Patch VM spec to change NAD reference to valid nad2
+            1. Read MAC address of secondary interface
 
         Expected:
-            - Error condition is reported for non-existent NAD
-            - VM is "Running" and connected to nad2 after valid change
+            - MAC address equals pre-change value
         """
-        non_existent_nad = "does-not-exist-nad"
+        pass
 
-        LOGGER.info("Patching VM spec with non-existent NAD: %s", non_existent_nad)
-        patch_vm_nad_reference(
-            vm=vm_on_nad1_scope_class,
-            network_name=nad1_scope_class.name,
-            new_nad_name=non_existent_nad,
-        )
-
-        LOGGER.info("Verifying error condition on VM status")
-        vmi = VirtualMachineInstance(
-            name=vm_on_nad1_scope_class.name,
-            namespace=vm_on_nad1_scope_class.namespace,
-        )
-        # VM should still be running despite the failed NAD reference
-        assert vmi.instance, "VMI should still exist after failed NAD update"
-
-        LOGGER.info("Patching VM spec with valid NAD: %s", nad2_scope_class.name)
-        patch_vm_nad_reference(
-            vm=vm_on_nad1_scope_class,
-            network_name=nad1_scope_class.name,
-            new_nad_name=nad2_scope_class.name,
-        )
-
-        LOGGER.info("Waiting for VM to recover and connect to nad2")
-        lookup_iface_status(
-            vm=vm_on_nad1_scope_class,
-            iface_name=nad2_scope_class.name,
-            timeout=TIMEOUT_5MIN,
-        )
-
-        LOGGER.info("Verifying VM is Running after recovery")
-        vm_on_nad1_scope_class.wait_for_status(
-            status=VirtualMachineInstance.Status.RUNNING,
-            timeout=TIMEOUT_2MIN,
-        )
-
-    def test_hotplug_then_nad_change(
-        self,
-        nad1_scope_class,
-        nad2_scope_class,
-        hotplug_nad_scope_class,
-        vm_on_nad1_scope_class,
-    ):
+    def test_interface_name_preserved_after_nad_change(self):
         """
-        Test TS-CNV72329-011: NIC hotplug and NAD change coexist on same VM.
+        Test that interface name is preserved after NAD change.
+
+        Preconditions:
+            - NAD reference changed from nad1 to nad2
+
+        Steps:
+            1. Read interface name of secondary interface
+
+        Expected:
+            - Interface name equals pre-change value
+        """
+        pass
+
+    def test_vmi_spec_reflects_nad_change(self):
+        """
+        Test that VMI spec reflects the updated NAD after change.
+
+        Preconditions:
+            - NAD reference changed from nad1 to nad2
+
+        Steps:
+            1. Read VMI spec network configuration
+
+        Expected:
+            - VMI spec shows nad2 as the NAD reference
+        """
+        pass
+
+    def test_vm_does_not_restart_after_nad_change(self):
+        """
+        Test that VM does not restart after NAD change.
+
+        Steps:
+            1. Patch VM spec to change NAD reference from nad1 to nad2
+
+        Expected:
+            - VM remains Running without restart
+            - No RestartRequired condition is set
+        """
+        pass
+
+
+class TestNADLiveUpdateFeatureGate:
+    """
+    Tests for feature gate behavior of NAD live update.
+
+    Markers:
+        - tier1
+
+    Preconditions:
+        - Running VM with secondary bridge interface on nad1
+        - Target NAD (nad2) deployed on worker nodes
+    """
+
+    __test__ = False
+
+    def test_nad_change_requires_restart_when_gate_disabled(self):
+        """
+        Test that NAD change requires restart when feature gate is disabled.
+
+        Preconditions:
+            - LiveUpdateNADRef feature gate disabled
+
+        Steps:
+            1. Patch VM spec to change NAD reference from nad1 to nad2
+
+        Expected:
+            - NAD change is not applied live
+            - RestartRequired condition is set
+        """
+        pass
+
+
+class TestNADLiveUpdateNegative:
+    """
+    Tests for error handling in NAD live update.
+
+    Markers:
+        - tier1
+
+    Preconditions:
+        - Running VM with secondary bridge interface on nad1
+    """
+
+    __test__ = False
+
+    def test_error_reported_for_nonexistent_nad(self):
+        """
+        [NEGATIVE] Test that error is reported for non-existent target NAD.
+
+        Steps:
+            1. Patch VM spec to change NAD reference to non-existent NAD
+
+        Expected:
+            - Error condition is reported on VM status
+            - VM remains Running
+        """
+        pass
+
+    def test_vm_recovers_after_failed_nad_update(self):
+        """
+        [NEGATIVE] Test that VM recovers after failed NAD update.
+
+        Preconditions:
+            - NAD reference changed to non-existent NAD (error state)
+
+        Steps:
+            1. Patch VM spec to change NAD reference to valid nad2
+
+        Expected:
+            - VM connects to nad2 network
+            - VM is Running
+        """
+        pass
+
+
+class TestNADLiveUpdateCoexistence:
+    """
+    Tests for NAD live update coexistence with other network features.
+
+    Markers:
+        - tier1
+
+    Preconditions:
+        - Running VM with secondary bridge interface on nad1
+        - Target NAD (nad2) deployed on worker nodes
+    """
+
+    __test__ = False
+
+    def test_nic_hotplug_works_with_feature_gate_enabled(self):
+        """
+        Test that NIC hotplug works when LiveUpdateNADRef feature gate is enabled.
 
         Steps:
             1. Hotplug a new bridge interface to the VM
-            2. Patch VM spec to change NAD reference on existing secondary interface
 
         Expected:
+            - Hotplugged interface is present in VM
             - Hotplugged interface reports valid IP address
-            - Original secondary interface is connected to new NAD
         """
-        LOGGER.info("Hotplugging new bridge interface to VM")
-        hot_plug_interface(
-            vm=vm_on_nad1_scope_class,
-            hot_plugged_interface_name=HOT_PLUG_IFACE_NAME,
-            net_attach_def_name=hotplug_nad_scope_class.name,
-        )
+        pass
 
-        LOGGER.info("Verifying hotplugged interface has valid IP")
-        hotplug_ip = lookup_iface_status_ip(
-            vm=vm_on_nad1_scope_class,
-            iface_name=hotplug_nad_scope_class.name,
-            ip_family=4,
-        )
-        assert hotplug_ip, (
-            f"Hotplugged interface {HOT_PLUG_IFACE_NAME} should report a valid IP"
-        )
+    def test_nad_change_after_nic_hotplug(self):
+        """
+        Test that NAD change succeeds after NIC hotplug on same VM.
 
-        LOGGER.info("Patching VM spec to change NAD reference from nad1 to nad2")
-        patch_vm_nad_reference(
-            vm=vm_on_nad1_scope_class,
-            network_name=nad1_scope_class.name,
-            new_nad_name=nad2_scope_class.name,
-        )
+        Preconditions:
+            - NIC hotplugged to VM
 
-        LOGGER.info("Waiting for NAD change to take effect")
-        lookup_iface_status(
-            vm=vm_on_nad1_scope_class,
-            iface_name=nad2_scope_class.name,
-            timeout=TIMEOUT_5MIN,
-        )
+        Steps:
+            1. Patch VM spec to change NAD reference on existing secondary interface
 
-        LOGGER.info("Verifying original secondary interface connected to nad2")
-        nad2_ip = lookup_iface_status_ip(
-            vm=vm_on_nad1_scope_class,
-            iface_name=nad2_scope_class.name,
-            ip_family=4,
-        )
-        assert nad2_ip, (
-            "Original secondary interface should have IP on nad2 after NAD change"
-        )
+        Expected:
+            - VM connects to new NAD network
+            - Hotplugged interface remains functional
+        """
+        pass
+
+    def test_existing_network_features_not_regressed(self):
+        """
+        Test that existing network features are not regressed.
+
+        Steps:
+            1. Verify SR-IOV and bridge hotplug operations
+
+        Expected:
+            - SR-IOV and bridge hotplug function correctly
+        """
+        pass

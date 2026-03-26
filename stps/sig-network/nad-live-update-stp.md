@@ -15,7 +15,7 @@
 
 ### **Feature Overview**
 
-This feature allows VM administrators to change the NetworkAttachmentDefinition (NAD) reference on a running VM's secondary network interface without requiring a VM restart. When the `LiveUpdateNADRef` feature gate is enabled, updating the `networkName` field in the VM spec takes effect transparently. After the update, the VM is connected to the new network while guest interface properties such as MAC address and interface name are preserved. The feature is scoped to secondary networks using bridge binding only.
+This feature allows VM administrators to change the NetworkAttachmentDefinition (NAD) reference on a running VM's secondary network interface without requiring a VM restart. The `LiveUpdateNADRef` feature gate controls this capability (enabled by default downstream). Updating the `networkName` field in the VM spec results in the VM connecting to the new network with minimal service disruption. Guest interface properties such as MAC address and interface name are preserved. The feature is scoped to secondary networks using bridge binding only.
 
 ---
 
@@ -33,7 +33,7 @@ This section documents the mandatory QE review process. The goal is to understan
   - Understand the difference between U/S and D/S requirements.
   - **What is the value of the feature for RH customers**.
   - Ensured requirements contain relevant **customer use cases**.
-  - Enables network reassignment (e.g., VLAN change) without VM restart, preserving workload continuity. Primary use case: VM admin swaps guest uplink between networks (e.g., VLAN change) with minimal service disruption. VEP #140 user story covers this.
+  - Enables network reassignment (e.g., VLAN change) without VM restart. Primary use case: VM admin swaps guest uplink between networks (e.g., VLAN change) with minimal service disruption. VEP #140 user story covers this.
 - [ ] **Testability**
   - Confirmed requirements are **testable and unambiguous**.
   - Testable via API patching and network connectivity checks.
@@ -167,9 +167,6 @@ The following conditions must be met before testing can begin:
 
 #### **5. Risks**
 
-- [ ] **Timeline/Schedule**
-  - Risk: PR #16412 is open with active review; merge timeline may affect test development
-  - Mitigation: Begin test development using upstream e2e tests as reference; track PR status
 - [ ] **Test Coverage**
   - Risk: NAD name normalization logic (namespace-qualified vs. unqualified) may produce edge cases not covered by upstream tests
   - Mitigation: Add dedicated test scenarios for namespace-qualified NAD name pairs; reviewer flagged this in PR

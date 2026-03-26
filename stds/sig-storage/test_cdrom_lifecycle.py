@@ -21,23 +21,69 @@ class TestCdromLifecycle:
 
     __test__ = False
 
-    def test_full_cdrom_inject_swap_eject_lifecycle(self):
+    def test_cdrom_inject_on_running_vm(self):
         """
-        Test that full CD-ROM inject, swap, and eject lifecycle completes successfully.
+        Test that CD-ROM media can be injected into a running VM.
 
         Steps:
             1. Inject DV-A by adding volume reference to CD-ROM disk
-            2. Mount and verify DV-A content in guest
-            3. Swap to DV-B by updating volume reference
-            4. Unmount, remount and verify DV-B content in guest
-            5. Eject by removing volume reference
-            6. Verify 'No medium found' in guest
-            7. Re-inject DV-A by adding volume reference again
-            8. Mount and verify DV-A content again
+            2. Mount CD-ROM in guest
 
         Expected:
-            - Each lifecycle step succeeds without errors
-            - VM remains Running throughout all operations
+            - DV-A content is accessible in guest
+            - VM remains Running
+        """
+        pass
+
+    def test_cdrom_swap_on_running_vm(self):
+        """
+        Test that CD-ROM media can be swapped on a running VM.
+
+        Preconditions:
+            - CD-ROM media (DV-A) injected and verified accessible
+
+        Steps:
+            1. Swap to DV-B by updating volume reference
+            2. Unmount and remount CD-ROM in guest
+
+        Expected:
+            - DV-B content is accessible in guest
+            - DV-A content is no longer present
+            - VM remains Running
+        """
+        pass
+
+    def test_cdrom_eject_on_running_vm(self):
+        """
+        Test that CD-ROM media can be ejected from a running VM.
+
+        Preconditions:
+            - CD-ROM media injected and verified accessible
+
+        Steps:
+            1. Eject by removing volume reference from VM spec
+
+        Expected:
+            - Guest reports 'No medium found'
+            - Empty CD-ROM drive remains present in guest
+            - VM remains Running
+        """
+        pass
+
+    def test_cdrom_reinject_after_eject(self):
+        """
+        Test that CD-ROM media can be re-injected after eject.
+
+        Preconditions:
+            - CD-ROM previously ejected (empty drive present)
+
+        Steps:
+            1. Re-inject DV-A by adding volume reference again
+            2. Mount CD-ROM in guest
+
+        Expected:
+            - DV-A content is accessible in guest
+            - VM remains Running
         """
         pass
 

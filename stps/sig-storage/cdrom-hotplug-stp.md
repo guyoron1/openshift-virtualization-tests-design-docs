@@ -5,7 +5,7 @@
 ### **Metadata & Tracking**
 
 - **Enhancement(s):** [kubevirt/enhancements#31](https://github.com/kubevirt/enhancements/issues/31)
-- **Feature Tracking:** [CNV-68916](https://issues.redhat.com/browse/CNV-68916)
+- **Feature Tracking:** [VIRTSTRAT-538](https://issues.redhat.com/browse/VIRTSTRAT-538)
 - **Epic Tracking:** [CNV-68916](https://issues.redhat.com/browse/CNV-68916) (Epic), [CNV-79690](https://issues.redhat.com/browse/CNV-79690) (Declarative Hotplug on by default), [CNV-77383](https://issues.redhat.com/browse/CNV-77383) (UI: GA: Eject/Inject CD-ROM Support), [CNV-64402](https://issues.redhat.com/browse/CNV-64402) (GA: Adopt declarative hotplug volumes API)
 - **QE Owner(s):** Yan Du
 - **Owning SIG:** sig-storage
@@ -188,9 +188,6 @@ The following conditions must be met before testing can begin:
 
 #### **5. Risks**
 
-- [ ] **Timeline/Schedule**
-  - Risk: Feature is GA but off by default; may delay full rollout until telemetry confirms safety
-  - Mitigation: Track CNV-79690 (Declarative Hotplug on by default) for timeline alignment
 - [ ] **Test Coverage**
   - Risk: Upstream test flakiness in declarative hotplug path (volume unplug ordering race conditions)
   - Mitigation: Monitor PR #14998 fix in CI; quarantine and investigate any remaining flakes
@@ -234,7 +231,7 @@ This section links requirements to test coverage, enabling reviewers to verify a
   - *Test Scenario:* Verify CD-ROM eject by removing volume reference from VM spec while keeping the CD-ROM disk entry; confirm volume is unplugged and guest reports "No medium found"
   - *Priority:* P0
 - **[REQ-CDROM-EJECT-02]** -- Ejected CD-ROM drive remains as empty device in guest
-  - *Test Scenario:* Verify that after ejecting CD-ROM media, the /dev/sr0 device still exists in guest but reports "No medium found" on mount attempt
+  - *Test Scenario:* Verify that after ejecting CD-ROM media, the empty CD-ROM drive is still present in the guest and reports "No medium found"
   - *Priority:* P1
 - **[REQ-CDROM-EJECT-03]** -- CD-ROM eject fails gracefully when feature gate is disabled
   - *Test Scenario:* Verify that removing a volume reference with feature gate disabled does not hot-eject (change queued for next restart)
